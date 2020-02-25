@@ -1,0 +1,11 @@
+.content {
+	margin: auto;
+	padding-top: 10px;
+	width: 700px;
+}
+
+.text {
+	font-size: 15px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+}
