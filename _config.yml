@@ -19,17 +19,22 @@
 # in the templates via {{ site.myvariable }}.
 
 title: Muzuwi's Blog-Thing
-email: none@example.com
 description: >- # this means to ignore newlines until "baseurl:"
-  This blog may or may not contain things
-domain: blog.muzuwi.dev
-url: https://blog.muzuwi.dev # the base hostname & protocol for your site, e.g. http://example.com
-baseurl: "/" # the subpath of your site, e.g. /blog
+  A blog about nothing and everything.
+# baseurl: "/" # the subpath of your site, e.g. /blog
+url: "https://blog.muzuwi.dev" # the base hostname & protocol for your site, e.g. http://example.com
+github_username: muzuwi
+highlighter: rouge
+svg:
+  optimize: true
 
-# Build settings
-theme: minima
+highlighter-theme: monokai
+date_format: "%Y-%M-%D"
 plugins:
   - jekyll-feed
+category_dir: category/
+tag_dir: tag/
+permalink: /posts/:year/:month/:day/:title/
 
 # Exclude from processing.
 # The following items will not be processed, by default.
