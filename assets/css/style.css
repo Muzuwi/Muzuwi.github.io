@@ -89,6 +89,7 @@ code {
 	/*margin-left: 180px;*/
 	flex: 1 1 auto;
 	padding: 0px 30px;
+	min-width: 0;
 }
 
 .sidebar {
@@ -211,7 +212,11 @@ article {
 
 article.home div a, article.home pre a { color: #2c3e50; }
 article.home div a:hover, article.home pre a:hover { color: #2c3e50; text-decoration: none; }
-article img { max-width: 100%; }
+article img { 
+	max-width: 100%; 
+	display: block;
+	margin: 0 auto;
+}
 
 blockquote {
 	color: #828282;
@@ -223,7 +228,7 @@ blockquote {
 
 p {
   margin-top: 0;
-  margin-bottom: 0;
+  margin-bottom: 12px;
 }
 
 article h1,
@@ -298,6 +303,18 @@ footer {
 	color: #ccc;
 }
 
+.grey {
+  color: #828282;
+}
+
+.svg-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  fill: currentColor;
+  padding: 5px 3px 2px 5px;
+  vertical-align: text-bottom;
+}
 
 @media (max-width: 576px) {
 	article {

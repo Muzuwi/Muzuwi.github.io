@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="{{ page.lang | default: site.lang | default: "en" }}">
   {%- include head.html -%}
-  <style>@import url(/public/css/syntax/{{ site.highlighter-theme }}.css);</style>
-  <title>{{ site.title }}</title>
-  <!-- <link href="/public/css/bootstrap.min.css" rel="stylesheet"> -->
+  <style>@import url(/assets/css/syntax/{{ site.highlighter-theme }}.css);</style>
 
-  <link href="/public/css/style.css" rel="stylesheet">
+  {% if page.title %}
+    <title>{{ page.title }} | {{ site.title }}</title>
+  {% else %}
+    <title>{{ site.title }}</title>
+  {% endif %}
+  <!-- <link href="/assets/css/bootstrap.min.css" rel="stylesheet"> -->
+
+  <link href="/assets/css/style.css" rel="stylesheet">
   <body>
   	<div class="container"> 
 		<div class="sidebar">

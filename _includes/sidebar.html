@@ -3,12 +3,28 @@
 		<a href="/">{{ site.title }}</a>
 	</div>
 	<p class="lead">{{ site.description }}</p>
-	{%- if social.github -%}
-		<a rel="me" href="https://github.com/{{ social.github | cgi_escape | escape }}" title="{{ social.github | escape }}">
-			<svg class="svg-icon grey">
-				<use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}" />
-			</svg></a></li>
-	{%- endif -%}
+	<ul class="social-media-list">
+		{%- if site.social.github -%}
+			<li>
+				<a class="nav-item" rel="me" href="https://github.com/{{ site.social.github | cgi_escape | escape }}" title="{{ site.social.github | escape }}">
+					<svg class="svg-icon grey">
+						<use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}" />
+					</svg>
+					GitHub
+				</a>
+			</li>
+		{%- endif -%}
+		{%- if site.social.twitter -%}
+			<li>
+				<a class="nav-item" rel="me" href="https://twitter.com/{{ site.social.twitter | cgi_escape | escape }}" title="{{ site.social.twitter | escape }}">
+					<svg class="svg-icon grey">
+						<use xlink:href="{{ '/assets/minima-social-icons.svg#twitter' | relative_url }}" />
+					</svg>
+					Twitter
+				</a>
+			</li>
+		{%- endif -%}
+	</ul>
 </div>
 
 <div class="sidebar-item sidebar-nav">
@@ -50,6 +66,7 @@
 <div class="sidebar-item sidebar-footer">
 	<p>
 		Powered by <a href="https://github.com/jekyll/jekyll">Jekyll</a>, using the
-		<a href="https://github.com/ejjoo/jekyll-theme-monos/">Monos</a> theme.	
+		<a href="https://github.com/ejjoo/jekyll-theme-monos/">Monos</a> theme, social icons from 
+		<a href="https://github.com/jekyll/minima">Minima</a>.
 	</p>
 </div>
