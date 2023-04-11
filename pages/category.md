@@ -1,5 +1,5 @@
 ---
 layout: category
-title: Category
+title: Filter by category
 permalink: /category/
 ---
