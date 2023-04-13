@@ -32,6 +32,7 @@ highlighter-theme: monokai
 date_format: "%Y-%M-%D"
 plugins:
   - jekyll-feed
+  - jekyll-toc
 category_dir: category/
 tag_dir: tag/
 permalink: /posts/:year/:month/:day/:title/
@@ -44,6 +45,9 @@ minima:
   social_links:
     github: "https://github.com/Muzuwi/"
     twitter: "https://twitter.com/muzuwi/"
+
+toc:
+  ordered_list: true
 
 
 # Exclude from processing.

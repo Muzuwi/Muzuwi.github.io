@@ -77,6 +77,9 @@ GEM
       jekyll (>= 3.7, < 5.0)
     jekyll-titles-from-headings (0.5.3)
       jekyll (>= 3.3, < 5.0)
+    jekyll-toc (0.18.0)
+      jekyll (>= 3.9)
+      nokogiri (~> 1.12)
     jekyll-watch (2.2.1)
       listen (~> 3.0)
     kramdown (2.4.0)
@@ -139,6 +142,7 @@ DEPENDENCIES
   jekyll-relative-links (~> 0.7.0)
   jekyll-sitemap (~> 1.4)
   jekyll-titles-from-headings (~> 0.5.3)
+  jekyll-toc (~> 0.18.0)
 
 BUNDLED WITH
    2.4.1
