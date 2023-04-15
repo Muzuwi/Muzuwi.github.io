@@ -9,7 +9,9 @@ toc: true
 Welcome back to yet another one of these! This year's event is a bit different, as it is not a Pokémon save-file 
 which was tradition at this point, but a bit of a classic CTF event. The event's website is [here](https://fools2023.online/), 
 should you wish to attempt this yourself (provided the servers are still up at the time you're reading this). Without further ado, let's
-get down to cracking!
+get down to cracking! 
+
+If you want to get spoiled, my rough tools and other small notes can be found [in this repo](https://github.com/Muzuwi/fools23/tree/master).
 
 # Introduction
 
