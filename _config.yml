@@ -33,6 +33,7 @@ date_format: "%Y-%M-%D"
 plugins:
   - jekyll-feed
   - jekyll-toc
+  - jekyll-sitemap
 category_dir: category/
 tag_dir: tag/
 permalink: /posts/:year/:month/:day/:title/
