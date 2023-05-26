@@ -3,6 +3,7 @@ layout: post
 title:  "TheZZAZZGlitch's April Fools 2022 Event - Cracker Cavern Reborn writeup"
 date:   2022-04-10 10:00:00 +0200
 categories: writeup ctf fools
+toc: true
 ---
 #  TheZZAZZGlitch's April Fools Event 2022 - Cracker Cavern Reborn challenges
 
@@ -130,7 +131,7 @@ has to be done through a memory load and not a single register load instruction)
 
 Based on that, we can see that the loop iterates over words from **0x0203db90**, and it does so for **2** words. 
 After trying a few more map load requests, they all seem to be sending data from **0x0203db90**, which from now on is 
-our prime target for reversing. You can see some example requests in the [docs/net.md](https://github.com/Muzuwi/fools22/docs/net.md) file in my notes repository.
+our prime target for reversing. You can see some example requests in the [docs/net.md](https://github.com/Muzuwi/fools22/blob/master/docs/net.md) file in my notes repository.
 
 Based on these few requests, the format seems easy enough:
 ```
@@ -261,7 +262,7 @@ I have no idea what the bytecode is - so let's consult the [Emerald disassembly]
 Opcode ```0x6a``` is a freeze all objects instruction (so the player can't move), ```0x5a``` turns the object towards 
 the player, etc. This sounds promising, but we still don't know whether the script does anything interesting with the
 password, and manually disassembling it is a hassle (especially when we don't know the size of the script). At this point,
-I opted to go for the nuclear route of [writing my own script disassembler](https://github.com/Muzuwi/fools22/tools/discript.cpp) to help facilitate 
+I opted to go for the nuclear route of [writing my own script disassembler](https://github.com/Muzuwi/fools22/blob/master/tools/discript.cpp) to help facilitate 
 the process. It loads a given binary file, and decodes the proper event opcodes. By dumping a sufficiently large memory 
 region, starting from the address ```0x020182ad``` we can capture the entire script (and if it looks like something's 
 missing, we can always dump more). Here is the script disassembly, with all the disassembler's fancy automatic function
@@ -340,7 +341,7 @@ Skipping analysis of 0x0203e17c - out of bounds. Did you copy the whole script?
 0x02018992  | return
 ```
 
-_You can check out the whole script in [cc3/script.txt](https://github.com/Muzuwi/fools22/cc3/script.txt) at my notes repository._
+_You can check out the whole script in [cc3/script.txt](https://github.com/Muzuwi/fools22/blob/master/cc3/script.txt) at my notes repository._
 
 Good thing I didn't reverse this script manually, huh. Based on the length, I'm pretty sure that the verification is 
 done in this script. Let's start with the function the script starts execution in:
@@ -744,7 +745,7 @@ At this point, I changed my approach a little bit. Knowing that you'll probably 
 cerificates (_**hindsight: you didn't**_), using [mitmproxy](https://mitmproxy.org/) I reversed the API endpoints used between the client and the game
 server (at least the ones used while generating certificates and appraising them). This allowed me to create a quick 
 Python tool for requestion and appraising certs without having to use an emulator. You can check out
-my findings in the [docs/api.md](https://github.com/Muzuwi/fools22/docs/api.md) file.
+my findings in the [docs/api.md](https://github.com/Muzuwi/fools22/blob/master/docs/api.md) file.
 
 Knowing that the requested certificate type is sent to the server, we can attempt to request a gold one by simply
 changing the "type" value. However, this obviously doesn't work, and the server does some checking on the request data 
