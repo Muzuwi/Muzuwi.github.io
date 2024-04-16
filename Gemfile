@@ -20,3 +20,5 @@ group :jekyll_plugins do
 end
 
 gem "jekyll-toc", "~> 0.18.0"
+
+gem "json", "~> 2.7"
