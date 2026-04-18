@@ -1,0 +1,420 @@
+---
+layout: post
+title:  "TheZZAZZGlitch's April Fools 2026 Event - Hacking challenges writeup"
+date:   2026-04-18 10:00:00 +0200
+categories: writeup ctf fools
+toc: true
+---
+
+# Introduction
+
+At this point, I cannot beat the allegations that this blog consists entirely of my writeups for the yearly April Fools event, courtesy of [TheZZAZZGlitch][zzazz].
+This year is no different, so here we go again - time for yet another yearly post on this site!
+
+The event can be found [here][fools26], however chances are that if you're reading this it has already concluded, and you won't be able to submit your scores anymore.
+But if you love PMD and 100F dungeons, then the hack is definitely something you should check out, as it is pretty brutal.
+I won't lie: I did not finish it legit, it is significantly beyond my PMD skills.
+
+Solution scripts used for these challenges can be found in the usual place, on [GitHub][muzuwifools].
+
+
+# Challenge #1 - A cut above the rest
+
+As usual, the main event consists of a modified Pokémon game, be it via save file shenanigans, or this year using a provided IPS patch to be applied on top of a PMD: Red Rescue Team ROM.
+Upon completion of various stages in the game, you are rewarded with a completion password that you can submit on the event's website that unlocks various achievements and constitutes your position on the leaderboard.
+
+The last completable floor is 99F, with 100F being a non-playable cutscene. The goal of this challenge is to create a completion password that encodes finishing a run on floor 101F.
+
+## Approach #1 - Modify dungeon generation to create 101 floors?
+
+My first naive thought, having no practical experience in how PMD:Red generates dungeons (beyond watching [ZZAZZ's video](pmddungeongeneration) on this, lol), was to patch the game to spawn 101 regular floors.
+My thought process was: if I can figure out how to sidestep the password creation stuff and just coax the PMD engine into generating 101 floors normally, then surely I will be able to warp to the last floor and finish the hack as usual, and create the completion password as usual.
+
+Eventually, using [pmd-red][pmd-red] as reference, I found [dungeon_info.c][dungeoninfo] which defines `sDungeonFloorCount` and `sDungeonStartingFloor`, which I can surely set to 101, warp to 101F and finish the hack, right?
+
+![WELCOME TO THE GREEN ROOM](/assets/img/2026-04-18-fools2026/green.png){: width="640" }
+*WELCOME TO THE GREEN ROOM*
+
+Conveniently, the dungeon type used in the hack is `0`, so you need to only modify the first entry in the array.
+Setting both values to 101 however brought me to the green room, and the floor is not what I expected - according to the floor display, I'm on 99F.
+The green room is also a soft-lock, the staircase is blocked due to having the "enemies around" trigger, and there are no enemies on this floor.
+
+I wasted some time following this approach but in the end got nowhere.
+I only got as close to spawning at 100F, finishing the floor and watching the cutscene on the next floor, which still encoded completion on 100F unfortunately.
+
+Naive methods aside, I moved to actual reversing work.
+
+## Approach #2 - Setting floor count on a checkpoint?
+
+After some reversing, I found that the method at `08087b70` is called on each floor, and by cross-referencing strings I found that this also handles the checkpoint mechanism.
+Ghidra decompiled pseudocode of the relevant parts below:
+
+```c
+void fools_floor_script(void)
+{
+...
+  completionByte = ReadCompletionStateFloorCount();
+  iVar2 = INT_08087dd8;
+  *(byte *)(*piVar1 + INT_08087dd8 + 0x1e) = (byte)completionByte & 0x80;
+  iVar5 = *piVar1;
+  *(byte *)(iVar5 + iVar2 + 0x1e) =
+       *(char *)(iVar5 + offsFloor) + *(char *)(iVar5 + 0x14) | *(byte *)(iVar5 + iVar2 + 0x1e);
+  if (0x3c < *PTR_SHORT_08087dfc) {
+    *(byte *)(*piVar1 + iVar2 + 0x1e) = *(byte *)(*piVar1 + iVar2 + 0x1e) | 0x80;
+  }
+  WriteCompletionStateFloorCount(*(byte *)(*piVar1 + iVar2 + 0x1e));
+  checkpoint = mask_checkpoint_floors();
+  if (((checkpoint & 0xff) != 0) && (*(char *)(*piVar1 + iVar2 + 0x1d) == 'g')) {
+    PlayMessageSound();
+    checkpoint = completion_save_maybe(*PTR_uint8_t_ARRAY_08087dd0);
+    if (checkpoint == 0) {
+      PrintMessage((short *)0x0,*PTR_PTR_strCheckpointSaveOk_08087e18,'\x01');
+    }
+    else {
+      PrintMessage((short *)0x0,*PTR_PTR_strCheckpointSaveFail_08087e44,'\x01');
+    }
+  }
+  *(undefined *)(*(int *)PTR_gDungeon_08087e48 + INT_08087e4c + 0x1d) = 0x67;
+...
+}
+```
+
+Without digging too deep into the password generation, my next idea was to attempt setting the floor count in the `gDungeon` global struct during a checkpoint save.
+I would set a breakpoint on the function, set the floor count to 101, then resume, and hopefully whatever completion password was saved would encode finishing the floor there.
+
+However, this failed to produce the desired effect - instead of the actual floor count being saved, the completion just contained the closest checkpoint downwards.
+
+## Approach #3 - Death means success
+
+At some point I accidentally stumbled upon a minor spoiler, and I was made aware that deaths also encode the completion password.
+In hindsight this makes perfect sense, I haven't attempted to submit a completion password that wasn't directly at a checkpoint before so I wasn't even aware this was saved.
+
+This turned out to be the correct approach.
+I eventually found that `080a047c` is called after dying and is cross-referencing symbols I discovered in attempt #2 that save the completion data.
+
+My strategy was then:
+1. Set myself to a high floor, just to speed up testing and so I get oneshotted every time
+  * (you could just let a regular wild mon kill you by not doing anything but I love complicating things for myself)
+1. Patching the anticheat function
+  * This was done from paranoia, the anticheat function seems to be accessing the floor count and modifying the completion state array in memory.
+  * After patching out that modification, the completion password generation still worked fine, so it clearly wasn't actually required for the completion password generation.
+  * (but in hindsight, it was probably unnecessary for what I was doing here)
+1. Setting the floor count to 101
+  * Instead of relying on manually setting it from breakpoints this time, I modified the ROM directly by patching the instruction at `08087d3e` so a constant `0x65`* is set instead of using the floor count from `gDungeon`. For reference, this is this line from the decompiled output:
+```c
+  *(byte *)(iVar5 + iVar2 + 0x1e) =
+       *(char *)(iVar5 + offsFloor) + *(char *)(iVar5 + 0x14) | *(byte *)(iVar5 + iVar2 + 0x1e);
+```
+1. Finally, starting a run and dying to a wild mon.
+
+At that point, I got booted to the main menu, and the completion password was valid and accepted on the website.
+It did, in fact, encode floor 101 being finished.
+
+\* However, I encountered some oddities during this.
+Actually using `0x65` resulted in a completion on floor 72F for some reason.
+I have NO idea why it was like this, but applying the same offset (`101 - 72`) and using the constant `0x82` encoded the correct floor value (`101F`).
+
+# Challenge #2 - Certified hacker
+
+We get an HTTP API, and we got the associated assembly for the validation portion.
+The challenge is essentially a fusion of [gbhttp from 2022][gbhttp] and [Cracker Cavern Reborn 4 from 2024][ccr4] challenges.
+
+The task is to create a gold certificate, having only access to the validation service and its associated code.
+
+## Approach #1 - Timing sidechannel?
+
+My first thought was: maybe there is a sidechannel here?
+If this was actually running on a GB, the time it takes to process each individual character could perhaps appear in the time it took the server to respond.
+
+I immediately got reminded of 2023's [HACKERMANS challenge][hackermans], but actually attempting to verify this theory on the current challenge reminded me how annoying and unpredictable network timing is.
+I ended up taking the `min()` of 5 different request times, as sometimes there were outliers that I wrongly thought corresponded to a byte being correct, but which turned out to be just regular network latency.
+
+Checking each possible byte in the first position, I found that the response times were pretty much identical and there weren't any obvious outliers, so this approach was a dead end.
+
+## Approach #2 - Deriving first keystream byte
+
+Testing all bytes I noticed that the server presents responses other than `INVAL` for certain byte values.
+For example, byte `b9` returned the following:
+```
+b9 0.07687258720397949 Sorry, this is not a gold certificate.
+```
+While bytes: `bf-c3`, `c5-d7`, `dc-de`, `e0-e3`, `e5-f7`, `fc-fe` returned a `SYNTAX` error.
+
+In theory, each input consists of `KEY=VALUE;` pairs, where key and value may only contain alphanumeric characters:
+```asm
+	; Read key name to $CC00
+	ld de, $cc00
+	call ValueUntilSep
+	jr c, .inval
+	; "=" is expected now
+	ld a, [hli]
+	cp "="
+	jr nz, .syntax
+	; Read value name to $CC10
+	ld de, $cc10
+	call ValueUntilSep
+	jr c, .inval
+	; ";" is expected now
+	ld a, [hl]
+	cp ";"
+	jr z, .syntax
+```
+Parsing the key/value fields is done by iterating over the input until a separator character, so a simple case of `=;` would certainly pass and be a valid input.
+
+And it turns out, the KV pair reading has a bug:
+```asm
+	cp ";"
+	jr z, .syntax   <--- should be jr, nz!
+```
+Which effectively implements an inverse of what the comments imply, that is: terminating the input with a semicolon will result in a syntax error.
+Thus, the minimal valid input is a single `=` character, which would result in an empty key/value.
+
+Given `b9` results in an actual validation status and not any of the `INVAL`/`SYNTAX` errors, the underlying plaintext must be `=` in this case.
+This finding allows directly infering the result of `DECRYPT(0xb9, KEYSTREAM)`, and thus the first underlying keystream byte.
+
+We know both the plaintext and the ciphertext, and as the encryption is a simple XOR cipher, one can easily calculate the first keystream using `ord("=") ^ 0xB9`, which gives `0x84`.
+This gives the ability to encrypt a single byte of input, which will be useful very soon.
+
+## Deriving following keystream bytes
+
+Given a single byte of the keystream, you can derive the following keystream bytes by deduction using the server's responses.
+The most interesting responses for this process are those that indicate negative validation (`'Sorry'`), and `SYNTAX` errors.
+
+Consider the following:
+* An input ending in `==` will result in a `SYNTAX` error
+* An input ending in `=;` will also result in a `SYNTAX` error due to the above bug, despite being syntactically correct
+
+For example, iterating over all possible inputs `b9XX`, this time around I get a significant amount of validation responses:
+```
+b980 0.07479190826416016 Sorry, this is not a gold certificate.
+b981 0.08106017112731934 Sorry, this is not a gold certificate.
+b982 0.07853126525878906 Sorry, this is not a gold certificate.
+```
+These will correspond to some alphanumeric character being in the input, and the input being processed as `KEY=''`, `VALUE='?'` (where ? is unknown).
+
+In the same input space, only two of the byte values for the second byte of the input result in a `SYNTAX` error:
+```
+b9d8 0.09934115409851074 SYNTAX
+b9de 0.07643747329711914 SYNTAX
+```
+This results in an ambiguity: either of the two bytes can map to `=` or `;`.
+
+To disambiguate between the two and identify the second character, you can check the response received by replacing the immediately preceding byte by a known alphanumeric character.
+For example:
+* `==` is turned into `A=` - the input will result in a negative validation (`'Sorry'`)
+* `=;` is turned into `A;` - the input will result in a `SYNTAX` error
+
+This is enough to be able to derive the as much of the keystream that is required in order to encrypt the `TYPE=Gold` input.
+Knowing whether the plaintext of a given input character is `=` or `;`, you simply XOR the ciphertext with its underlying character to get the keystream byte at that position.
+
+Encrypting the input is then a matter of a simple XOR of the keystream with the input, which gives the ciphertext bytes needed to be validated against the service to receive the flag.
+
+Performing cryptanalysis on a larger keystream sample to check if it matches some commonly used PRNGs is left as an exercise for the curious reader :)
+
+# Challenge #3 - Ultra secure vault
+
+Back to Gen1 for this challenge, here it's a custom savefile implementing a password check with a [weird machine][wm].
+While I'd love to show you some incredibly clever solution involving huge amounts of graph theory or something, I am not smart enough for that and will instead bruteforce my way through this (surprisingly, Z3 is somehow not involved this year).
+
+## Password check
+
+The password check function is at `02:A000`, and input is located at `DE00:DE0A`.
+Ghidra decompiled output of the function is below, for reference:
+```c
+
+byte * advance_boxptr_from_state_3_2(void)
+{
+  return magic_box + CONCAT11(state[3],state[2]) + CONCAT11(state[3],state[2]);
+}
+
+byte * advance_boxptr_from_state_5_4(void)
+{
+  return magic_box + CONCAT11(state[5],state[4]) + CONCAT11(state[5],state[4]);
+}
+
+byte * advance_boxptr_from_state_7_6(void)
+{
+  return magic_box + CONCAT11(state[7],state[6]) + CONCAT11(state[7],state[6]);
+}
+
+void process_password(void)
+{
+  byte count;
+  byte *dst;
+  byte *boxptr;
+  byte boxvalue;
+  
+  create_magic_box();
+  dst = magic_box + 6;
+  count = 10;
+  boxptr = INPUT_BYTES;
+  do {
+    *dst = *boxptr;
+    dst = dst + 2;
+    count = count - 1;
+    boxptr = boxptr + 1;
+  } while (count != 0);
+  DAT_d057 = 1;
+  BankSwitch(0x4c05);
+  boxptr = magic_box;
+  while( true ) {
+    state[2] = *boxptr;
+    state[3] = boxptr[1];
+    state[4] = boxptr[2];
+    state[5] = boxptr[3];
+    state[6] = boxptr[4];
+    state[7] = boxptr[5];
+    state._0_2_ = boxptr;
+    boxptr = (byte *)advance_boxptr_from_state_3_2();
+    state[8] = *boxptr;
+    state[9] = boxptr[1];
+    boxptr = (byte *)advance_boxptr_from_state_5_4();
+    boxvalue = *boxptr;
+    state[11] = boxptr[1];
+    if ((state[4] == 0xff) && (state[5] == 0xff)) break;
+    state[10] = boxvalue - state[8];
+    state[11] = (state[11] - state[9]) - (boxvalue < state[8]);
+    boxptr = (byte *)advance_boxptr_from_state_5_4();
+    *boxptr = state[10];
+    boxptr[1] = state[11];
+    state[12] = 0;
+    if ((state[10] == 0) && (state[11] == 0)) {
+      state[12] = 1;
+    }
+    if ((state[11] & 0x80) != 0) {
+      state[12] = 1;
+    }
+    if (state[12] == 0) {
+      boxptr = (byte *)(state._0_2_ + 6);
+    }
+    else {
+      boxptr = (byte *)advance_boxptr_from_state_7_6();
+    }
+  }
+  state[10] = boxvalue;
+  if (state[8] != 0) {
+    on_password_valid();
+    return;
+  }
+  PlaceString(0xc480,pokeStrIncorrectPassword);
+  PlaySound(0xff);
+  PlaySound(0xa5);
+  FUN_xram[file]__a1c1();
+  return;
+}
+```
+
+The savefile implements a weird machine that processes the input password (in the typical gen 1 poke character set).
+The machine calculates a result in one of its 16-bit "registers" for whether the password is valid or not.
+
+What I refer to as a "magic box" is in fact just the initial state of the machine, which is initialized from a default state hardcoded in the state (`0x1600` bytes long).
+The input is copied into the low bytes of the first 16-bit words of the state.
+On each cycle, the machine performs some computation on its state then advances to the next "PC".
+
+My method of approaching this challenge involved attempting to find sidechannels that will allow me not to care about what the code actually does, but figure out which inputs are steering the machine into a state that wasn't seen before.
+
+To help with this, I reimplemented the machine in Python and added a simple counter for the amount of iterations the machine executed before arriving at the result (password valid/not valid).
+It is a naive reimplementation of Ghidra's decompiled output, and no attempt was made to make this fast.
+
+## Guided bruteforce
+
+My idea was to use the amount of iterations as a metric for "how good of a choice is a given character", on the assumption that if a character is a better candidate, then it must cause the machine to execute more cycles before presumably terminating on a following character.
+
+I recursively search the tree of candidates using an initial seed input, which is mutated starting at the lowest known invalid character index (which at the beginning will start at 0, as there's no valid characters found yet).
+All possible mutations of the input are checked, and the inputs that resulted in the highest iteration counts are persisted.
+These inputs are then used as the seed value for the next round of mutations.
+
+```python
+GLOBALBEST: list[algo.EmulationResult] = []
+GLOBALMAX = 10
+
+def recurse_candidate(input: bytes, idx: int, parent_iters: int | None):
+    global GLOBALBEST
+    if idx >= len(input):
+        return
+    results = []
+    for k, _ in pokechars.CHARSET.items():
+        mutated_input = bytearray(input)
+        mutated_input[idx] = k
+        result = algo.validate_password(mutated_input, return_full_result=True)
+        if result.valid:
+            print(f"Valid password:", pokechars.depokeify(mutated_input))
+            return
+        # Prune possible dead ends
+        if parent_iters and result.iterations < parent_iters:
+            continue
+        results.append(result)
+
+        GLOBALBEST.append(result)
+        GLOBALBEST = sorted(GLOBALBEST, key=lambda x: x.iterations, reverse=True)
+        if len(GLOBALBEST) > GLOBALMAX:
+            GLOBALBEST = GLOBALBEST[:GLOBALMAX]
+
+    results = sorted(results, key=lambda x: x.iterations, reverse=True)
+    for r in results:
+        recurse_candidate(r.input, idx + 1, r.iterations)
+
+```
+
+My actual solution to this challenge is not single-click, but was a result of manually playing around with the bruteforcer.
+
+For example, I started with the following:
+```python
+    input = bytearray([0x80, 0x80, 0x80])
+    recurse_candidate(input, 0, None)
+```
+Which gave the following results, showing that there's clearly something special about the `[0x81, 0xA4, 0xAF]` prefix in the input:
+```
+Global best results:
+- input=bytearray(b'\x81\xa4\xaf') iterations=216 pc_increments=58 branches=158
+- input=bytearray(b'\x81\x94\xbf') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x95\xbe') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x96\xbd') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x97\xbc') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x98\xbb') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x99\xba') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x9a\xb9') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x9b\xb8') iterations=178 pc_increments=50 branches=128
+- input=bytearray(b'\x81\x9c\xb7') iterations=178 pc_increments=50 branches=128
+```
+
+Repeating the same procedure with progressively longer seed inputs, I noticed that iteration counts are steadily increasing, until at some point it found the correct password:
+
+```python
+    input = bytearray([0x81, 0xA4, 0xAF, 0x80, 0x80])
+    recurse_candidate(input, 3, None)
+    # best candidate:
+    # - input=bytearray(b'\x81\xa4\xaf\x88\x92') iterations=966 pc_increments=263 branches=703
+
+    input = bytearray([0x81, 0xA4, 0xAF, 0x88, 0x92, 0x80, 0x80])
+    recurse_candidate(input, 5, None)
+    # best candidate:
+    # - input=bytearray(b'\x81\xa4\xaf\x88\x92\xa8\xab') iterations=2608 pc_increments=729 branches=1879
+
+    input = bytearray([0x81, 0xA4, 0xAF, 0x88, 0x92, 0xA8, 0xAB, 0x80, 0x80])
+    recurse_candidate(input, 7, None)
+    # best candidate:
+    # - input=bytearray(b'\x81\xa4\xaf\x88\x92\xa8\xab\xab\xae') iterations=4515 pc_increments=1270 branches=3245
+
+    input = bytearray([0x81, 0xA4, 0xAF, 0x88, 0x92, 0xA8, 0xAB, 0xAB, 0xAE, 0x80])
+    recurse_candidate(input, 9, None)
+    # finds valid password: BepISillon
+```
+
+# Closing thoughts
+
+* Thanks to TheZZAZZGlitch for yet another great event!
+* Huge thanks to everyone involved in the [pmd-red][pmd-red] decompile project, which proved to be an incredible source of information when solving challenge #1
+
+<!-- ====================== Links below ====================== -->
+
+[zzazz]: https://www.youtube.com/@TheZZAZZGlitch
+[fools26]: https://zzazzdzz.github.io/fools2026/
+[muzuwifools]: https://github.com/Muzuwi/fools26
+[pmddungeongeneration]: https://www.youtube.com/watch?v=fudOO713qYo
+[pmd-red]: https://github.com/pret/pmd-red/
+[dungeoninfo]: https://github.com/pret/pmd-red/blob/master/src/dungeon_info.c
+[hackermans]: https://blog.muzuwi.dev/posts/2023/04/14/fools2023/#flag-6---hackermans
+[gbhttp]: https://blog.muzuwi.dev/posts/2024/04/17/fools2024/#challenge-iii---gbhttp
+[ccr4]: https://blog.muzuwi.dev/posts/2022/04/10/fools2022/#cracker-cavern-reborn-4
+[wm]: https://www.cs.dartmouth.edu/~sergey/wm/
