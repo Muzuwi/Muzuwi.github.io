@@ -34,6 +34,7 @@ plugins:
   - jekyll-feed
   - jekyll-toc
   - jekyll-sitemap
+  - jekyll-seo-tag
 category_dir: category/
 tag_dir: tag/
 permalink: /posts/:year/:month/:day/:title/

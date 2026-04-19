@@ -17,8 +17,9 @@ group :jekyll_plugins do
   gem "jekyll-coffeescript", "~> 2.0"
   gem "jekyll-default-layout", "~> 0.1.5"
   gem "jekyll-optional-front-matter", "~> 0.3.2"
+  gem "jekyll-seo-tag", "~> 2.8.0"
+  gem "jekyll-toc", "~> 0.18.0"
 end
 
-gem "jekyll-toc", "~> 0.18.0"
-
 gem "json", "~> 2.7"
+
