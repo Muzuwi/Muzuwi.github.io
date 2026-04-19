@@ -27,7 +27,7 @@ The last completable floor is 99F, with 100F being a non-playable cutscene. The 
 
 ## Approach #1 - Modify dungeon generation to create 101 floors?
 
-My first naive thought, having no practical experience in how PMD:Red generates dungeons (beyond watching [ZZAZZ's video](pmddungeongeneration) on this, lol), was to patch the game to spawn 101 regular floors.
+My first naive thought, having no practical experience in how PMD:Red generates dungeons (beyond watching [ZZAZZ's video][pmddungeongeneration] on this, lol), was to patch the game to spawn 101 regular floors.
 My thought process was: if I can figure out how to sidestep the password creation stuff and just coax the PMD engine into generating 101 floors normally, then surely I will be able to warp to the last floor and finish the hack as usual, and create the completion password as usual.
 
 Eventually, using [pmd-red][pmd-red] as reference, I found [dungeon_info.c][dungeoninfo] which defines `sDungeonFloorCount` and `sDungeonStartingFloor`, which I can surely set to 101, warp to 101F and finish the hack, right?
@@ -307,7 +307,7 @@ void process_password(void)
 The savefile implements a weird machine that processes the input password (in the typical gen 1 poke character set).
 The machine calculates a result in one of its 16-bit "registers" for whether the password is valid or not.
 
-What I refer to as a "magic box" is in fact just the initial state of the machine, which is initialized from a default state hardcoded in the state (`0x1600` bytes long).
+What I refer to as a "magic box" is in fact just the initial state of the machine, which is initialized from a default state hardcoded in the save (`0x1600` bytes long).
 The input is copied into the low bytes of the first 16-bit words of the state.
 On each cycle, the machine performs some computation on its state then advances to the next "PC".
 
